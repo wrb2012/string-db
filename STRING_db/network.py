@@ -1,7 +1,7 @@
 from typing import Union,Set,List
 import pandas as pd
-from .prep import client, Identifier, default_cache
-
+from . import __version__
+from .prep import client, Identifier
 
 class Image:
     
@@ -9,8 +9,8 @@ class Image:
         self.idents = idents
         self.data = {"species": idents.species}
 
-    def params(self, de_color: dict = None, thres = 400):
-        self.data['caller_identity'] = __package__
+    def params(self, de_color: dict = None, thres = 400, network_type: str = 'functional'):
+        self.data['caller_identity'] = __package__+'/'+__version__
         self.data['identifiers'] = self.idents()
         self.data['required_score'] = thres
         self.data['add_color_nodes'] = de_color
