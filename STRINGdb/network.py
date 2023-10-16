@@ -1,5 +1,4 @@
 from typing import Union,Set,List,Literal
-import numpy as np
 import pandas as pd
 import matplotlib.colors as mpc
 import matplotlib.cm as cm
@@ -35,9 +34,8 @@ class Image:
         #df2 = pd.concat([pos_df, neg_df])
         #df2.reindex(anno.index)
         
-        data = {'identifiers': '\r'.join(self.idents.ids)}
-        data['color'] = anno_colors['color'].str.cat(sep='\r')
-        ## 这里服务器返回所需时间较长
+        data = {'identifiers': ' '.join(self.idents.ids)}
+        data['colors'] = anno_colors['color'].str.cat(sep=' ')
         res = client.post('/cgi/webservices/post_payload.pl',
             data=data)
 
