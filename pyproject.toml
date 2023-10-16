@@ -19,8 +19,11 @@ dependencies = [
 [project.optional-dependencies]
 ###
 
+[project.scripts]
+stringdb = "STRINGdb.prep:download_table"
+
 [tool.setuptools]
-packages = ["STRING_db"]
+packages = ["STRINGdb"]
 
 [tool.setuptools.dynamic]
-version = {attr = "STRING_db.__version__"}
+version = {attr = "STRINGdb.__version__"}

@@ -1,12 +1,15 @@
 
 from enum import Enum
 from pathlib import Path
+import sys
 from typing import Dict,List,Set,Union
 import httpx
 import pandas as pd
-from .version import api_domain, STRING_VER, STATIC_FILES
+from . import __version__
+from .version import api_domain, STRING_VER, STATIC_ASSET
 
-client = httpx.Client(base_url=api_domain+'/api',
+client = httpx.Client(base_url=api_domain,
+        headers={'User-Agent': __package__+'/'+__version__},
         timeout=20,
         transport=httpx.HTTPTransport(retries=2)
 )
@@ -14,15 +17,17 @@ client = httpx.Client(base_url=api_domain+'/api',
 
 class Identifier:
 
-    def __init__(self, taxon: int, idents: Union[List,Set] = {}):
+    def __init__(self, taxon: int, idents: Union[List,Set] = {}, *,
+            sig = None):
         self.species = taxon
-        self.idents = idents
-    
+        self.ids = idents
+        self.sig = sig
+
     def __call__(self) -> str:
-        if len(self.idents) > 1:
-            return '\r'.join(self.idents)  # for POST method
+        if len(self.ids) > 1:
+            return '\r'.join(self.ids)  # for POST method
         else:
-            return self.idents[0]
+            return self.ids[0]
 
 class Table(str, Enum):
     '''database resources'''
@@ -45,7 +50,7 @@ def download_table(taxon: int, table: str, save_dir: Path = default_cache):
     '''download large database table'''
     Path.mkdir(Path(save_dir), exist_ok=True)
     
-    url_lastest = f'{STATIC_FILES}{Table[table].value}/{taxon}.{Table[table].value}.txt.gz'
+    url_lastest = f'{STATIC_ASSET}{Table[table].value}/{taxon}.{Table[table].value}.txt.gz'
     with open(f'{save_dir}/{taxon}.{Table[table].value}.txt.gz', 'wb') as f:
         with httpx.stream("GET", url_lastest) as res:
             for chunk in res.iter_raw():
@@ -59,7 +64,13 @@ class IDConvert:
         self.species = taxon
 
     def map_id(self, idents: str) -> List[Dict]:
-        '''returned fields:
+        '''
+        Parameters
+        ----------
+        idents      gene symbols joined by '\r'
+
+        returned fields:
+        ------
         queryIndex	position of the protein in your input (starting from position 0)
         stringId	STRING identifier
         ncbiTaxonId	NCBI taxon identifier
@@ -67,8 +78,8 @@ class IDConvert:
         preferredName	common protein name
         annotation	protein annotation
         '''
-        res = client.post('/json/get_string_ids',
-                data={'identifiers': idents, 'species': self.species})
+        res = client.post('/api/json/get_string_ids',
+                data={'identifiers': idents, 'species': self.species, 'limit': 1})
         return res.json()  ## usually you just need first ids
     
     def map_id_local(source: Union[Set,List], ref_dir = default_cache):
@@ -79,3 +90,6 @@ class IDConvert:
                 .groupby(['alias'])['#string_protein_id'].first()
         print(f'Conversion rate is: {len(string_ids) / len(source)} !')
         return string_ids.values
+
+if __name__ == '__main__':
+    download_table(taxon= sys.argv[1], table=sys.argv[2])
