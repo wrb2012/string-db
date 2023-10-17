@@ -1,5 +1,4 @@
 from typing import Union,Set,List,Literal
-import numpy as np
 import pandas as pd
 import matplotlib.colors as mpc
 import matplotlib.cm as cm
@@ -22,34 +21,26 @@ class Image:
         self.data['required_score'] = thres
         #self.data['add_color_nodes'] = de_color
         
-    def visual(self, logFoldChange: str='logFC') -> bytes:
+    def visual(self, logFoldChange: str='logFC') -> pd.DataFrame:
         
-        anno = pd.DataFrame(self.sig)
-        pval05_pos = anno[anno[logFoldChange] > 0].reset_index(drop=True)
-        norm = np.exp(pval05_pos[logFoldChange]) / np.exp(pval05_pos[logFoldChange].max())
-        color_pos = cm.ScalarMappable(cmap=cm.Reds).to_rgba(norm)
-        color_pos_hex = pd.Series([mpc.to_hex(c, keep_alpha=True) for c in color_pos],
-                name='color')
-        pos_df = pval05_pos.join(color_pos_hex)  #if no .reset_index(), join will fail
+        anno = pd.DataFrame(self.sig[logFoldChange])
+        anno = anno.reset_index(drop=True)   ### for slice input
+        norm = mpc.Normalize(vmin=anno.min(), vmax=anno.max())
+        color_array = cm.ScalarMappable(cmap=cm.bwr, norm=norm).to_rgba(anno)
+        color_hex = pd.Series([mpc.to_hex(c, keep_alpha=True).upper()
+                for c in color_array], name='color')
+        anno_colors = anno.join(color_hex)
 
-        pval05_neg = anno[anno[logFoldChange] <= 0].reset_index(drop=True)
-        norm = np.exp(pval05_neg[logFoldChange].abs()) / np.exp(-pval05_neg[logFoldChange].min())
-        color_neg = cm.ScalarMappable(cmap=cm.Greens).to_rgba(norm)
-        color_neg_hex = pd.Series([mpc.to_hex(c, keep_alpha=True) for c in color_neg],
-                name='color')
-        neg_df = pval05_neg.join(color_neg_hex)
-
-        color_df = pd.concat([pos_df, neg_df])
-        #color_df.reindex(anno.index)
+        #df2 = pd.concat([pos_df, neg_df])
+        #df2.reindex(anno.index)
         
-        data = {'identifiers': '\r'.join(self.idents.ids)}
-        data['color'] = color_df['color'].str.cat(sep='\r')
-        ## 这里服务器返回所需时间较长
+        data = {'identifiers': ' '.join(self.idents.ids)}
+        data['colors'] = anno_colors['color'].str.cat(sep=' ')
         res = client.post('/cgi/webservices/post_payload.pl',
             data=data)
 
         self.data['internal_payload_id'] = res.text
-        return color_df
+        return anno_colors
 
     def network(self, img: Literal['svg','png'] = 'svg', *, save: Union[bool,str]=True
     ) -> Union[bytes,str]:
