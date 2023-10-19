@@ -1,1 +1,8 @@
-# 这是STRINGdb > 12.0 的python api 包
+# STRINGdb python package
+
+
+This package is inspired by R/Bioconductor lib STRINGdb.
+
+Suitable for string-db.org  `version >= 11.5`
+
+This package is in a very early state.
