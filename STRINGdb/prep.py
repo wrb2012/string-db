@@ -1,23 +1,31 @@
 
-from enum import Enum
 from pathlib import Path
 import sys
-from typing import Dict,List,Set,Union
+from typing import Dict,List,Set,Union,Iterable,Optional
 import httpx
 import pandas as pd
 from . import __version__
-from .version import api_domain, STRING_VER, STATIC_ASSET
+from .version import choose_version, STATIC_ASSET
 
-client = httpx.Client(base_url=api_domain,
-        headers={'User-Agent': __package__+'/'+__version__},
-        timeout=20,
-        transport=httpx.HTTPTransport(retries=2)
-)
+default_cache = Path.joinpath(Path.home(),'.cache', __package__)
 
+def init(version: float=12.0, *, ref_dir=default_cache):
+    domain = choose_version(version)
+    global client
+    client = httpx.Client(base_url=domain,
+            headers={'User-Agent': __package__+'/'+__version__},
+            timeout=20,
+            transport=httpx.HTTPTransport(retries=2)
+    )
+    global STRING_VER
+    STRING_VER = version
+    global cache_path
+    cache_path = Path(ref_dir)
+    
 
 class Identifier:
 
-    def __init__(self, taxon: int, idents: Union[List,Set] = {}, *,
+    def __init__(self, taxon: int, idents: Iterable = [], *,
             sig = None):
         self.species = taxon
         self.ids = idents
@@ -29,45 +37,49 @@ class Identifier:
         else:
             return self.ids[0]
 
-class Table(str, Enum):
+
+class DbFile:
     '''database resources'''
-    info = 'protein.info.v'+STRING_VER
-    alias = 'protein.aliases.v'+STRING_VER
-    links = 'protein.links.detail.v'+STRING_VER
-    links_full = 'protein.links.full.v'+STRING_VER
-    physical = 'protein.physical.links.detail.v'+STRING_VER
-    physical_full = 'protein.physical.links.detail.v'+STRING_VER
+    def __init__(self, string_ver: Optional[str]=None):
+        string_ver = str(string_ver) if string_ver else str(STRING_VER)
+        self.info = 'protein.info.v'+string_ver
+        self.alias = 'protein.aliases.v'+string_ver
+        self.links = 'protein.links.detailed.v'+string_ver
+        self.links_full = 'protein.links.full.v'+string_ver
+        self.physical = 'protein.physical.links.detail.v'+string_ver
+        self.physical_full = 'protein.physical.links.detail.v'+string_ver
 
-    sequence = 'protein.sequence.v'+STRING_VER
-    homology = 'protein.homology.v'+STRING_VER
-    enrich = 'protein.enrichment.v'+STRING_VER
-    cluster = 'clusters.info.v'+STRING_VER
-    cluster_tree = 'clusters.tree.v'+STRING_VER
+        self.sequence = 'protein.sequence.v'+string_ver
+        self.homology = 'protein.homology.v'+string_ver
+        self.enrich = 'protein.enrichment.v'+string_ver
+        self.cluster = 'clusters.info.v'+string_ver
+        self.cluster_tree = 'clusters.tree.v'+string_ver
 
-default_cache = Path.joinpath(Path.home(),'.cache', __package__)
+    def download(self, taxon: int, table: str, *, save_dir: Path = default_cache):
+        '''download large database table'''
+        if cache_path:
+            save_dir = cache_path
+        Path.mkdir(Path(save_dir), exist_ok=True)
+        
+        url = f'{STATIC_ASSET}{getattr(self,table)}/{taxon}.{getattr(self,table)}.txt.gz'
+        with open(f'{save_dir}/{taxon}.{getattr(self,table)}.txt.gz', 'wb') as f:
+            with httpx.stream("GET", url) as res:
+                for chunk in res.iter_raw():
+                    #file = gzip.decompress(res.content)
+                    f.write(chunk)
 
-def download_table(taxon: int, table: str, save_dir: Path = default_cache):
-    '''download large database table'''
-    Path.mkdir(Path(save_dir), exist_ok=True)
-    
-    url_lastest = f'{STATIC_ASSET}{Table[table].value}/{taxon}.{Table[table].value}.txt.gz'
-    with open(f'{save_dir}/{taxon}.{Table[table].value}.txt.gz', 'wb') as f:
-        with httpx.stream("GET", url_lastest) as res:
-            for chunk in res.iter_raw():
-                #file = gzip.decompress(res.content)
-                f.write(chunk)
 
-
-class IDConvert:
-    
-    def __init__(self, taxon: int = 9606):
+class Meta:
+    def __init__(self, taxon: int = 9606, *, idents: Iterable):
         self.species = taxon
+        self.symbols = idents
+        self.cache = cache_path if cache_path else default_cache
 
-    def map_id(self, idents: str) -> List[Dict]:
+    def map_id(self) -> List[Dict]:
         '''
         Parameters
         ----------
-        idents      gene symbols joined by '\r'
+        idents      gene symbols list/tuple/set
 
         returned fields:
         ------
@@ -78,18 +90,41 @@ class IDConvert:
         preferredName	common protein name
         annotation	protein annotation
         '''
+        symbol = '\r'.join(self.symbols)
         res = client.post('/api/json/get_string_ids',
-                data={'identifiers': idents, 'species': self.species, 'limit': 1})
-        return res.json()  ## usually you just need first ids
-    
-    def map_id_local(source: Union[Set,List], ref_dir = default_cache):
-        protein_aliases: pd.DataFrame = pd.read_csv(ref_dir, sep='\t')
+                data={'identifiers': symbol, 'species': self.species, 'limit': 1})
+        string_ids = res.json()
+        print(f'Conversion rate is: {len(string_ids) / len(self.symbols)} !')
+        return string_ids  ## usually you just need first ids
+
+    def map_id_local(self) -> pd.Series:
+        pr_id_table = Path.joinpath(self.cache, f'{self.species}.{DbFile(STRING_VER).alias}.txt.gz')
+        if not pr_id_table.is_file():
+            DbFile(STRING_VER).download(self.species, 'alias')
+        protein_aliases: pd.DataFrame = pd.read_csv(pr_id_table, sep='\t')
         ## warning : may loss genes/proteins
         _to_stringid = protein_aliases.drop_duplicates(subset=['alias','#string_protein_id'])
-        string_ids = _to_stringid[_to_stringid['alias'].isin(source)]\
+        string_ids = _to_stringid[_to_stringid['alias'].isin(self.symbols)]\
                 .groupby(['alias'])['#string_protein_id'].first()
-        print(f'Conversion rate is: {len(string_ids) / len(source)} !')
-        return string_ids.values
+        print(f'Conversion rate is: {len(string_ids) / len(self.symbols)} !')
+        return string_ids
+
+    def protein_info_local(self):
+        pr_anno_table = Path.joinpath(self.cache, f'{self.species}.{DbFile(STRING_VER).info}.txt.gz')
+        if not pr_anno_table.is_file():
+            DbFile(STRING_VER).download(self.species, 'info')
+        protein_anno: pd.DataFrame = pd.read_csv(pr_anno_table, sep='\t')
+        pr_anno = protein_anno[(protein_anno['preferred_name']==self.symbols) 
+                | (protein_anno['#string_protein_id']==self.symbols)]
+        #return pr_df[['#string_protein_id', 'protein_size', 'annotation']]
+        return pr_anno
+    
+    def homology_graph_local(self):
+        pass
+
+    def homologs_besthits(self):
+        pass
 
 if __name__ == '__main__':
-    download_table(taxon= sys.argv[1], table=sys.argv[2])
+    init()
+    DbFile(STRING_VER).download(taxon= sys.argv[1], table=sys.argv[2])

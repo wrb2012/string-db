@@ -6,8 +6,18 @@ client = Client(base_url="https://string-db.org/api",
                 follow_redirects=True)
 
 
-STRINGdb_latest: dict = client.get("/json/version").json()[0]
-api_domain: str = STRINGdb_latest["stable_address"]
-STRING_VER: str = STRINGdb_latest["string_version"]
+string_versions = client.get("/json/version").json()
+STRINGdb_latest = string_versions[0]
+latest_api: str = STRINGdb_latest["stable_address"]
+latest_ver: str = STRINGdb_latest["string_version"]
+
+
+def choose_version(version: float=12.0) -> str:
+    for ver in string_versions:
+        if ver['string_version'] == str(version):
+            return ver['stable_address']
+    print(f"Your requested version is not supported now, try using {latest_ver} instead.")
+    old_ver = str(version).replace('.','-')
+    return f'https://version-{old_ver}.string-db.org'
 
 STATIC_ASSET = 'https://stringdb-downloads.org/download/'
