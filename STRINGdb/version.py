@@ -1,9 +1,9 @@
-from httpx import Client
+from httpx import Client, HTTPTransport
 
 client = Client(base_url="https://string-db.org/api",
                 headers={'User-Agent': "Mozilla/5.0 (X11; Linux x86_64; rv:115.0) Gecko/20100101 Firefox/115.0"},
-                timeout=10,
-                follow_redirects=True)
+                follow_redirects=True, timeout=10,
+                transport=HTTPTransport(retries=3))
 
 
 string_versions = client.get("/json/version").json()
@@ -12,7 +12,7 @@ latest_api: str = STRINGdb_latest["stable_address"]
 latest_ver: str = STRINGdb_latest["string_version"]
 
 
-def choose_version(version: float=12.0) -> str:
+def choose_version(version: float=latest_ver) -> str:
     for ver in string_versions:
         if ver['string_version'] == str(version):
             return ver['stable_address']

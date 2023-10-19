@@ -15,7 +15,7 @@ def init(version: float=12.0, *, ref_dir=default_cache):
     client = httpx.Client(base_url=domain,
             headers={'User-Agent': __package__+'/'+__version__},
             timeout=20,
-            transport=httpx.HTTPTransport(retries=2)
+            transport=httpx.HTTPTransport(retries=3)
     )
     global STRING_VER
     STRING_VER = version
@@ -46,8 +46,8 @@ class DbFile:
         self.alias = 'protein.aliases.v'+string_ver
         self.links = 'protein.links.detailed.v'+string_ver
         self.links_full = 'protein.links.full.v'+string_ver
-        self.physical = 'protein.physical.links.detail.v'+string_ver
-        self.physical_full = 'protein.physical.links.detail.v'+string_ver
+        self.physical = 'protein.physical.links.detailed.v'+string_ver
+        self.physical_full = 'protein.physical.links.full.v'+string_ver
 
         self.sequence = 'protein.sequence.v'+string_ver
         self.homology = 'protein.homology.v'+string_ver
@@ -95,7 +95,7 @@ class Meta:
                 data={'identifiers': symbol, 'species': self.species, 'limit': 1})
         string_ids = res.json()
         print(f'Conversion rate is: {len(string_ids) / len(self.symbols)} !')
-        return string_ids  ## usually you just need first ids
+        return string_ids 
 
     def map_id_local(self) -> pd.Series:
         pr_id_table = Path.joinpath(self.cache, f'{self.species}.{DbFile(STRING_VER).alias}.txt.gz')
@@ -126,5 +126,6 @@ class Meta:
         pass
 
 if __name__ == '__main__':
-    init()
-    DbFile(STRING_VER).download(taxon= sys.argv[1], table=sys.argv[2])
+    def main():
+        init()
+        DbFile(STRING_VER).download(taxon= sys.argv[1], table=sys.argv[2])
