@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "STRING-db"
+name = "py-STRINGdb"
 authors = [
     {name = "Rongbo Wu", email = "wurongbo2012@hotmail.com"},
 ]
