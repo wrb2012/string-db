@@ -11,16 +11,16 @@ class Image:
     '''not recommend plotting over 150 genes/proteins
     use .params() first'''
     def __init__(self,idents: Identifier):
-        self.idents = idents
+        self.ids = idents.ids
         self.sig = idents.sig
         self.data = {"species": idents.species,
-                     'caller_identity': __package__+'/'+__version__}
+                    'identifiers': idents(),
+                     'caller_identity': __package__}
 
     def params(self, thres = 400, network_type: str = 'functional',
                edge_style: Literal['confidence','evidence']='evidence', 
                hide_disconnect = 0, flat_node = 0,
                center_label = 0, label_size = 12):
-        self.data['identifiers'] = self.idents()
         self.data['required_score'] = thres
         if edge_style == 'confidence':
             self.data['network_flavor'] = edge_style
@@ -37,18 +37,14 @@ class Image:
                 for c in color_array], name='color')
         anno_colors = anno.join(color_hex)
 
-        #df2 = pd.concat([pos_df, neg_df])
-        #df2.reindex(anno.index)
-        
-        data = {'identifiers': ' '.join(self.idents.ids)}
-        data['colors'] = anno_colors['color'].str.cat(sep=' ')
+        self.data['colors'] = anno_colors['color'].str.cat(sep='\r')
         res = prep.client.post('/cgi/webservices/post_payload.pl',
-            data=data)
+            data=self.data)
 
         self.data['internal_payload_id'] = res.text
         return anno_colors
 
-    def plot(self, img: Literal['svg','png']='svg', *, save: Union[bool,str]=True
+    def plot(self, img: Literal['svg','png']='svg', *, save: str=''
     ) -> Union[bytes,str]:
         '''params:
         img : svg or png
@@ -58,11 +54,16 @@ class Image:
         '''
         _format = 'highres_image' if img=='png' else 'svg'
         res = prep.client.post('/api/'+_format+'/network', data=self.data)
-        
-        if img == 'svg':
-            return res.text
-        elif img == 'png':
-            return res.content
+        image = res.text if img == 'svg' else res.content
+        if save:
+            if img == 'svg':
+                with open(save, 'w') as f:
+                    f.write(image)
+            elif img == 'png':
+                with open(save, 'wb') as f:
+                    f.write(image)
+        else:
+            return image
 
 
 
@@ -71,7 +72,7 @@ class Enrichment:
         self.idents = idents
         self.sig = idents.sig
         self.data = {"species": idents.species,
-                     'identifiers': self.idents(),
+                     'identifiers': idents(),
                      'caller_identity': __package__+'/'+__version__}
 
     def params(self, thres: int= 400, background: Iterable=[],):

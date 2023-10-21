@@ -14,7 +14,8 @@ requires-python = ">=3.8"
 dependencies = [
     "httpx >= 0.21",
     "pandas >= 1.4",
-    "igraph >= 0.10.2"
+    "igraph > 0.10.4",
+    "matplotlib >= 3.3"
 ]
 
 [project.optional-dependencies]

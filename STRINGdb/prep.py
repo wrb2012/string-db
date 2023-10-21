@@ -100,6 +100,7 @@ class Meta:
     def map_id_local(self) -> pd.Series:
         pr_id_table = Path.joinpath(self.cache, f'{self.species}.{DbFile(STRING_VER).alias}.txt.gz')
         if not pr_id_table.is_file():
+            print('Downloading...')
             DbFile(STRING_VER).download(self.species, 'alias')
         protein_aliases: pd.DataFrame = pd.read_csv(pr_id_table, sep='\t')
         ## warning : may loss genes/proteins
