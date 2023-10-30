@@ -1,4 +1,4 @@
-from typing import Union,Literal,Optional,Iterable
+from typing import Union,Literal,Optional,Iterable,Dict
 from io import StringIO
 import pandas as pd
 import matplotlib.colors as mpc
@@ -79,6 +79,31 @@ class Enrichment:
         self.data['required_score'] = thres
         self.data['background'] = '\r'.join(background)
     
+    def interaction(self):
+        res = prep.client.post('/api/tsv/network', data=self.data)
+        tsv = StringIO(res.text)
+        return pd.read_csv(tsv, sep='\t')
+    
+    def all_partner(self, limit=None):
+        if limit:
+            self.data['limit'] = limit
+        res = prep.client.post('/api/tsv/interaction_partners', data=self.data)
+        tsv = StringIO(res.text)
+        return pd.read_csv(tsv, sep='\t')
+
+    def similarity(self):
+        res = prep.client.post('/api/tsv/homology', data=self.data)
+        tsv = StringIO(res.text)
+        return pd.read_csv(tsv, sep='\t')
+
+    def ortholog(self, other_species: Iterable):
+        if not other_species:
+            other_species=self.idents.species
+        data = {'species_b': '\r'.join(other_species)}.update(self.data)
+        res = prep.client.post('/api/tsv/homology_best', data=data)
+        tsv = StringIO(res.text)
+        return pd.read_csv(tsv, sep='\t')
+        
     def functional(self, category: Literal['All, Process, Component, Function, Keyword, KEGG, RCTM, Pfam, SMART, InterPro']='All'):
         res = prep.client.post('/api/tsv/enrichment', data=self.data)
         tsv = StringIO(res.text)
@@ -91,9 +116,9 @@ class Enrichment:
         tsv = StringIO(res.text)
         return pd.read_csv(tsv, sep='\t')
     
-    def ppi(self , thres: Optional[int]=None):
+    def ppi(self , thres: Optional[int]=None) -> Dict:
         if thres:
             self.data['required_score'] = thres
         #if 'background_string_identifiers' not in self.data:
         res = prep.client.post('/api/json/ppi_enrichment', data=self.data)
-        return res.json()
+        return res.json()[0]

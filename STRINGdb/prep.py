@@ -55,18 +55,19 @@ class DbFile:
         self.cluster = 'clusters.info.v'+string_ver
         self.cluster_tree = 'clusters.tree.v'+string_ver
 
-    def download(self, taxon: int, table: str, *, save_dir: Path = default_cache):
+    def download(self, taxon: int, table: str, *, save_dir: Path = default_cache) -> Path:
         '''download large database table'''
         if cache_path:
             save_dir = cache_path
         Path.mkdir(Path(save_dir), exist_ok=True)
-        
+        file = Path.joinpath(save_dir, f'{taxon}.{getattr(self,table)}.txt.gz')
         url = f'{STATIC_ASSET}{getattr(self,table)}/{taxon}.{getattr(self,table)}.txt.gz'
-        with open(f'{save_dir}/{taxon}.{getattr(self,table)}.txt.gz', 'wb') as f:
-            with httpx.stream("GET", url) as res:
-                for chunk in res.iter_raw():
-                    #file = gzip.decompress(res.content)
-                    f.write(chunk)
+        if not file.is_file():
+            with open(file, 'wb') as f:
+                with httpx.stream("GET", url) as res:
+                    for chunk in res.iter_raw():
+                        f.write(chunk)
+        return file
 
 
 class Meta:
@@ -120,6 +121,8 @@ class Meta:
         #return pr_df[['#string_protein_id', 'protein_size', 'annotation']]
         return pr_anno
     
+        
+
     def homology_graph_local(self):
         pass
 
