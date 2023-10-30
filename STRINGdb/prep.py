@@ -1,5 +1,6 @@
 
 from pathlib import Path
+from io import StringIO
 import sys
 from typing import Dict,List,Set,Union,Iterable,Optional
 import httpx
@@ -63,6 +64,7 @@ class DbFile:
         file = Path.joinpath(save_dir, f'{taxon}.{getattr(self,table)}.txt.gz')
         url = f'{STATIC_ASSET}{getattr(self,table)}/{taxon}.{getattr(self,table)}.txt.gz'
         if not file.is_file():
+            print('Downloading...')
             with open(file, 'wb') as f:
                 with httpx.stream("GET", url) as res:
                     for chunk in res.iter_raw():
@@ -76,12 +78,8 @@ class Meta:
         self.symbols = idents
         self.cache = cache_path if cache_path else default_cache
 
-    def map_id(self) -> List[Dict]:
+    def map_id(self) -> pd.DataFrame:
         '''
-        Parameters
-        ----------
-        idents      gene symbols list/tuple/set
-
         returned fields:
         ------
         queryIndex	position of the protein in your input (starting from position 0)
@@ -92,17 +90,14 @@ class Meta:
         annotation	protein annotation
         '''
         symbol = '\r'.join(self.symbols)
-        res = client.post('/api/json/get_string_ids',
+        res = client.post('/api/tsv/get_string_ids',
                 data={'identifiers': symbol, 'species': self.species, 'limit': 1})
-        string_ids = res.json()
+        string_ids = pd.read_csv(StringIO(res.text), sep='\t')
         print(f'Conversion rate is: {len(string_ids) / len(self.symbols)} !')
-        return string_ids 
+        return string_ids
 
     def map_id_local(self) -> pd.Series:
-        pr_id_table = Path.joinpath(self.cache, f'{self.species}.{DbFile(STRING_VER).alias}.txt.gz')
-        if not pr_id_table.is_file():
-            print('Downloading...')
-            DbFile(STRING_VER).download(self.species, 'alias')
+        pr_id_table = DbFile(STRING_VER).download(self.species, 'alias')
         protein_aliases: pd.DataFrame = pd.read_csv(pr_id_table, sep='\t')
         ## warning : may loss genes/proteins
         _to_stringid = protein_aliases.drop_duplicates(subset=['alias','#string_protein_id'])
@@ -121,13 +116,6 @@ class Meta:
         #return pr_df[['#string_protein_id', 'protein_size', 'annotation']]
         return pr_anno
     
-        
-
-    def homology_graph_local(self):
-        pass
-
-    def homologs_besthits(self):
-        pass
 
 if __name__ == '__main__':
     def main():
