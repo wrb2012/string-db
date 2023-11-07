@@ -15,4 +15,4 @@ pip install py-STRINGdb
 
 ## Usage 
 
-There are some demo in `doc` folder
+There are some demo in [doc](./doc/) folder
