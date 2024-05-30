@@ -29,7 +29,7 @@ def init(version: float = 12.0, *, ref_dir: Path = default_cache):
 
 class Identifier:
     def __init__(self,
-        taxon: int, idents: Iterable[str] = [], *, sig: Optional[Iterable] = None
+        taxon: int, idents: Iterable[str] = [], *, sig: Optional[Iterable[str]] = None
     ):
         self.species = taxon
         self.ids = idents

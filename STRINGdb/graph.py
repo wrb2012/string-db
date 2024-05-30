@@ -10,7 +10,7 @@ from .prep import DbFile, Identifier
 
 
 class Graph:
-    def __init__(self, idents: Identifier, score_source: Literal = "combined_score"):
+    def __init__(self, idents: Identifier, score_source: Literal["combined_score"] = "combined_score"):
         self.species = idents.species
         self.ids = idents.ids
         graphfile = DbFile().download(idents.species, "links")
@@ -22,7 +22,7 @@ class Graph:
         )
 
     def subnetwork(
-        self, /, thres=None, label: Optional[pd.Series] = []
+        self, /, thres=None, label: Optional[pd.Series] = None
     ) -> pd.DataFrame:
         """return: interactions(subset network dataframe)"""
 
@@ -51,7 +51,7 @@ class Graph:
             ax,
             layout=self.subgraph.layout(layout),
             palette=ig.RainbowPalette(),
-            vertex_size=[4 + 2 * s for s in self.subgraph.degree()],
+            vertex_size=[4 + s for s in self.subgraph.degree()],
             vertex_color=list(
                 map(int, ig.rescale(components.membership, (0, 200), clamp=True))
             ),
