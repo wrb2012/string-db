@@ -22,7 +22,7 @@ class Graph:
         )
 
     def subnetwork(
-        self, /, thres=None, label: Optional[pd.Series] = None
+        self, /, thres=None, label: bool = True
     ) -> pd.DataFrame:
         """return: interactions(subset network dataframe)"""
 
@@ -30,10 +30,8 @@ class Graph:
         if thres:
             edges = self.subgraph.es(score_gt=thres)
             self.subgraph = self.subgraph.subgraph_edges(edges)
-        if len(label) > 0:
-            self.subgraph.vs["label"] = [
-                label[label == s].index[0] for s in self.subgraph.vs["name"]
-            ]
+        if label:
+            self.subgraph.vs["label"] = [ s for s in self.ids.index ]
         interactions = self.subgraph.to_dict_list(use_vids=False)[1]
         self.interactions = pd.DataFrame(interactions)
         return self.interactions
