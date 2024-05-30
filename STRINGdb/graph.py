@@ -51,14 +51,14 @@ class Graph:
             ax,
             layout=self.subgraph.layout(layout),
             palette=ig.RainbowPalette(),
-            vertex_size=[4 + s for s in self.subgraph.degree()],
+            vertex_size=[10 + s/10 for s in self.subgraph.degree()],
             vertex_color=list(
                 map(int, ig.rescale(components.membership, (0, 200), clamp=True))
             ),
             vertex_label=self.subgraph.vs["label"],
             vertex_label_dist=0.5,
             vertex_label_size=5,
-            edge_width=[0.125 + w / 1000 for w in self.subgraph.es["score"]],
+            edge_width=[0.125 + w / 500 for w in self.subgraph.es["score"]],
         )
         ax.set_title("Clutered Network")
         return fig
